@@ -1,4 +1,4 @@
-import time, re, os, json
+import time, re, os, json, threading
 import streamlit as st
 import minds, lang, brand, content
 
@@ -296,6 +296,37 @@ def ensure_active_conversation():
         minds.ensure_conversation(active_alias(), mind["mindId"])
 
 
+# ============ 冷启动预热 ============
+# 新会话首次回复需 180-300s（cognition 冷启动）。预热 = 启动/切换工作区时
+# 后台建会话并抛一句问候，让它先把首响烧掉；真正点击生成时基本秒回。
+_WARMED = set()
+_WARM_MSG = {
+    "zh": "你好，OmniPost 会话已就绪。",
+    "en": "Hello, OmniPost session is ready.",
+}
+
+
+def warm_conversation(alias, mind_id):
+    if alias in _WARMED:
+        return
+    _WARMED.add(alias)
+    try:
+        minds.ensure_conversation(alias, mind_id)
+        minds.send_message(alias, _WARM_MSG[lang.LANG])
+    except Exception:
+        _WARMED.discard(alias)  # 失败则下次再试
+
+
+def start_warmup():
+    if "mind" not in st.session_state:
+        return
+    threading.Thread(
+        target=warm_conversation,
+        args=(active_alias(), st.session_state["mind"]["mindId"]),
+        daemon=True,
+    ).start()
+
+
 # ============ 工作区（Workspace）记忆隔离 ============
 # 每个工作区是一个独立数据字典：
 #   { name, profile(绑定人设), history([{ts, source, thread, tiktok, score, review}]) }
@@ -479,6 +510,9 @@ with st.sidebar:
         with st.spinner(lang.t("connecting")):
             mind = get_mind_guard()
             st.session_state["mind"] = mind
+    else:
+        # 会话已连：后台预热当前工作区，烧掉冷启动
+        start_warmup()
 
 # ---------- 主工作区 ----------
 st.markdown(
