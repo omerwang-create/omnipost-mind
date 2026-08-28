@@ -264,12 +264,14 @@ def icon(name, color=None, size=None):
 def reply(alias, text, timeout=360):
     h = minds.get_history(alias, 20)
     ref = next((r["id"] for r in h if r["senderType"] == 0), None)
+    # 跳过热身问候的回复（id 相同），它代表"会话已就绪"，不是生成结果
+    warm = _WARM_REPLY.get(alias)
     minds.send_message(alias, text)
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             for row in minds.get_history(alias, 20):
-                if row["senderType"] == 0 and row["id"] != ref:
+                if row["senderType"] == 0 and row["id"] != ref and row["id"] != warm:
                     return content.strip_html(row["messageText"])
         except Exception:
             # 单次轮询失败（SSL/网络抖动）静默跳过，不中断等待
@@ -300,6 +302,7 @@ def ensure_active_conversation():
 # 新会话首次回复需 180-300s（cognition 冷启动）。预热 = 启动/切换工作区时
 # 后台建会话并抛一句问候，让它先把首响烧掉；真正点击生成时基本秒回。
 _WARMED = set()
+_WARM_REPLY = {}  # alias -> 热身问候的 Mind 回复 id，生成轮询时跳过它
 _WARM_MSG = {
     "zh": "你好，OmniPost 会话已就绪。",
     "en": "Hello, OmniPost session is ready.",
@@ -313,6 +316,17 @@ def warm_conversation(alias, mind_id):
     try:
         minds.ensure_conversation(alias, mind_id)
         minds.send_message(alias, _WARM_MSG[lang.LANG])
+        # 等热身问候的回复落库，记录其 id；这条首响就是烧掉的冷启动
+        deadline = time.time() + 360
+        while time.time() < deadline:
+            try:
+                for row in minds.get_history(alias, 20):
+                    if row["senderType"] == 0 and row["id"] not in _WARM_REPLY.values():
+                        _WARM_REPLY[alias] = row["id"]
+                        return
+            except Exception:
+                pass
+            time.sleep(2)
     except Exception:
         _WARMED.discard(alias)  # 失败则下次再试
 

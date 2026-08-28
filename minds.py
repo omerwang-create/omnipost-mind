@@ -1,12 +1,20 @@
 """Minds Builder Hub client. Base: https://api.build.hellominds.ai"""
-import base64, json, os, time, requests
+import base64, json, os, time, threading, requests
 from dotenv import load_dotenv
 
 BASE = "https://api.build.hellominds.ai"
 load_dotenv()
 
-# 复用连接池，避免高频轮询时频繁新建 TLS 连接被服务器断开
-_SESSION = requests.Session()
+# 连接池复用，但 requests.Session 非线程安全：预热线程与生成轮询可能并发，
+# 每个线程各自维护一个 Session（thread-local），互不干扰。
+_SESSION = threading.local()
+
+
+def _session():
+    s = getattr(_SESSION, "s", None)
+    if s is None:
+        s = _SESSION.s = requests.Session()
+    return s
 
 
 def _req(method, path, **kw):
@@ -14,11 +22,12 @@ def _req(method, path, **kw):
     last = None
     for attempt in range(4):
         try:
-            r = _SESSION.request(method, BASE + path, headers=headers, **kw)
+            r = _session().request(method, BASE + path, headers=headers, **kw)
         except requests.exceptions.SSLError as e:
             # 服务器断开了空闲的 keep-alive 连接，关闭连接池强制重建 TLS
             last = e
-            _SESSION.close()
+            _session().close()
+            _SESSION.s = None
             time.sleep(1.0 * (attempt + 1))
             continue
         except requests.exceptions.RequestException as e:
