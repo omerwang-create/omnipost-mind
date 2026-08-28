@@ -686,12 +686,21 @@ with st.expander(lang.t("ws_history"), expanded=False):
         st.caption(lang.t("ws_empty"))
     else:
         for i, item in enumerate(reversed(hist), 1):
-            st.markdown(
-                f'<div class="omni-card" style="padding:12px 16px;margin-bottom:10px">'
-                f'<div style="display:flex;gap:16px;align-items:center">'
-                f'<span style="color:#94a3b8;font-size:0.8rem">{item["ts"]}</span>'
-                f'<span style="color:#4f6ef7">{item["profile"]}</span>'
-                f'<b class="num" style="color:#16a34a">{item["score"]}/100</b>'
-                f'</div>'
-                f'<p style="color:#334155;margin:6px 0 0">原文：{item["source"]}</p>'
-                f'</div>', unsafe_allow_html=True)
+            # 用「从末尾倒数第 i 条」定位，避免时间戳相同的记录误删
+            idx = len(hist) - i
+            col, del_col = st.columns([5, 1])
+            with col:
+                st.markdown(
+                    f'<div class="omni-card" style="padding:12px 16px;margin-bottom:10px">'
+                    f'<div style="display:flex;gap:16px;align-items:center">'
+                    f'<span style="color:#94a3b8;font-size:0.8rem">{item["ts"]}</span>'
+                    f'<span style="color:#4f6ef7">{item["profile"]}</span>'
+                    f'<b class="num" style="color:#16a34a">{item["score"]}/100</b>'
+                    f'</div>'
+                    f'<p style="color:#334155;margin:6px 0 0">原文：{item["source"]}</p>'
+                    f'</div>', unsafe_allow_html=True)
+            with del_col:
+                if st.button(lang.t("ws_del_rec"), key=f"del_hist_{st.session_state.current_ws}_{idx}"):
+                    del current_workspace()["history"][idx]
+                    _save_workspaces()
+                    st.rerun()
