@@ -164,6 +164,65 @@ st.markdown("""
 
   /* TikTok 节点加粗 */
   .tk-node { font-weight: 700; color: #ec4899; }
+
+  /* ===== 终检美化：全局节奏与细节 ===== */
+  .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1180px; }
+  .omni-logo { margin-bottom: 2px; }
+  .omni-sub { margin-bottom: 18px; }
+
+  /* 输入区：标签加重 + 聚焦光圈 */
+  [data-testid="stTextArea"] label p { font-weight: 700; color: var(--ink); font-size: 1.02rem; }
+  textarea:focus {
+    border-color: var(--indigo) !important;
+    box-shadow: 0 0 0 3px rgba(79,110,247,0.18) !important;
+    outline: none !important;
+  }
+
+  /* 侧边栏输入框同款描边与聚焦 */
+  [data-testid="stSidebar"] input {
+    background: #ffffff !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 10px !important;
+    color: var(--ink) !important;
+  }
+  [data-testid="stSidebar"] input:focus {
+    border-color: var(--indigo) !important;
+    box-shadow: 0 0 0 3px rgba(79,110,247,0.15) !important;
+  }
+
+  /* 下载按钮：幽灵样式，不抢主按钮 */
+  div.stDownloadButton > button {
+    background: #ffffff; border: 1px solid var(--border); border-radius: 10px;
+    color: var(--dim); font-weight: 500; padding: 0.3rem 1rem; font-size: 0.9rem;
+    transition: border-color 0.12s ease, color 0.12s ease;
+  }
+  div.stDownloadButton > button:hover { border-color: var(--indigo); color: var(--indigo); }
+
+  /* 推文聊天气泡：白卡圆角微投影 */
+  [data-testid="stChatMessage"] {
+    background: #ffffff; border: 1px solid var(--border); border-radius: 14px;
+    padding: 10px 14px; box-shadow: 0 1px 3px rgba(30,41,59,0.05);
+  }
+
+  /* Expander 卡片化 */
+  [data-testid="stExpander"] {
+    background: #ffffff; border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(30,41,59,0.05); overflow: hidden;
+  }
+  [data-testid="stExpander"] summary { font-weight: 600; }
+
+  /* 分隔线更轻、更克制 */
+  hr { border-color: var(--border); opacity: 0.7; }
+
+  /* 分数环：随环形的柔和落影 */
+  .ring { filter: drop-shadow(0 6px 14px rgba(30,41,59,0.10)); }
+
+  /* 状态卡胶囊 */
+  .ws-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f1f5f9; border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 14px; color: var(--dim); font-size: 0.92rem;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -200,11 +259,6 @@ def icon(name, color=None, size=None):
     style = f' style="color:{color};font-size:{size}"' if color or size else ""
     return (f'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"{style}>'
             f'{_ICONS[name]}</svg>')
-
-
-def icon_row(name, text, color=None):
-    return (f'<span style="display:inline-flex;align-items:center;gap:6px">'
-            f'{icon(name, color)}{text}</span>')
 
 
 def reply(alias, text, timeout=360):
@@ -435,13 +489,14 @@ st.markdown(f'<div class="omni-sub">{lang.t("logo_sub")}</div>', unsafe_allow_ht
 # 当前工作区 + 人设 + 语言的醒目状态卡
 ws_name = current_workspace()["name"]
 st.markdown(
-    f'<div class="omni-card" style="padding:12px 20px;display:flex;gap:28px;align-items:center">'
-    f'<span style="color:#64748b">{lang.t("ws_path")}</span>'
-    f'<b style="color:#0f766e;font-size:1.15rem">{ws_name}</b>'
-    f'<span style="color:#64748b">{icon_row("user", lang.t("active_profile"))}</span>'
-    f'<b style="color:#4f6ef7">{brand.active_name() or lang.t("no_profile")}</b>'
-    f'<span style="margin-left:auto;color:#64748b">{icon_row("globe", lang.t("active_lang"))}</span>'
-    f'<b style="color:#ec4899">{lang_code}</b>'
+    f'<div class="omni-card" style="padding:12px 20px;display:flex;gap:12px;'
+    f'align-items:center;flex-wrap:wrap">'
+    f'<span class="ws-chip">{lang.t("ws_path")} '
+    f'<b style="color:#0f766e">{ws_name}</b></span>'
+    f'<span class="ws-chip">{icon("user")} {lang.t("active_profile")} '
+    f'<b style="color:#4f6ef7">{brand.active_name() or lang.t("no_profile")}</b></span>'
+    f'<span class="ws-chip" style="margin-left:auto">{icon("globe")} {lang.t("active_lang")} '
+    f'<b style="color:#ec4899">{lang_code}</b></span>'
     f'</div>', unsafe_allow_html=True)
 
 source = st.text_area(
