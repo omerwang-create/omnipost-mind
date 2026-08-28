@@ -1,0 +1,19 @@
+# 敏感文件：真实 API key，绝不提交
+.env
+.env.save
+
+# 运行时数据（含生成历史）
+workspaces.json
+output/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 系统
+.DS_Store
+
+# 工具
+.claude/
