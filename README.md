@@ -51,6 +51,37 @@ omnipost-mind/
 
 ---
 
+## ⚡ Demo Quickstart (60 seconds)
+
+For judges / evaluators who want to see it running immediately — a one-minute path to a working demo:
+
+1. **Get a free Minds key** — sign up at [build.hellominds.ai](https://build.hellominds.ai), grab your API key (a JWT starting with `eyJ0...`).
+2. **Run three commands:**
+
+```bash
+git clone https://github.com/omerwang-create/omnipost-mind.git
+cd omnipost-mind
+pip install -r requirements.txt
+```
+
+3. **Add the key:**
+
+```bash
+echo "MINDS_API_KEY=YOUR_KEY_HERE" > .env
+```
+
+4. **Launch:**
+
+```bash
+streamlit run app.py
+```
+
+Open **http://localhost:8501**, pick a workspace + persona, paste any text, hit **Generate** — you'll see the virality score, Twitter thread, TikTok script, and export buttons within one prompt. That's the whole Cognition-memory flow, live.
+
+> Demo tip: the first generation on a fresh workspace can take a minute or two (Minds cognition cold start) — subsequent ones are fast.
+
+---
+
 ## 🚀 Local Setup
 
 ### Prerequisites
