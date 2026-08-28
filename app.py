@@ -155,12 +155,12 @@ st.markdown("""
 
   /* 单条推文卡片 */
   .tweet-card {
-    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
-    padding: 10px 14px; margin-bottom: 10px;
-    box-shadow: 0 1px 2px rgba(30,41,59,0.04);
+    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(30,41,59,0.05);
   }
-  .tweet-idx { color: #94a3b8; font-family: 'Space Grotesk', sans-serif;
-               font-size: 0.82rem; margin-right: 8px; }
+  .tweet-idx { color: #64748b; font-family: 'Space Grotesk', sans-serif;
+               font-size: 0.8rem; font-weight: 600; }
 
   /* TikTok 节点加粗 */
   .tk-node { font-weight: 700; color: #ec4899; }
@@ -611,7 +611,9 @@ if generate:
                     f'<h3 style="margin:0 0 10px;color:#6c8cff;display:flex;'
                     f'align-items:center;gap:8px">{icon("bird")} {lang.t("thread")}</h3>',
                     unsafe_allow_html=True)
-                tweets = result.get("tweets") or []
+                # 强制拆分为逐条推文：数组 → n/N → 空行/编号，一推一卡片
+                tweets = content.split_tweets(result["thread"] or "",
+                                              result.get("tweets") or [])
                 thread_txt = "\n\n".join(
                     f"{i}/{len(tweets)} {tw}" for i, tw in enumerate(tweets, 1)
                 ) or (result["thread"] or "")
@@ -622,10 +624,12 @@ if generate:
                     mime="text/plain",
                     key="dl_thread",
                 )
-                for i, tw in enumerate(tweets, 1):
-                    with st.chat_message("user", avatar="🐦"):
-                        st.caption(f"Tweet #{i}")
-                        st.markdown(tw)
+                for idx, tw in enumerate(tweets, 1):
+                    st.markdown(
+                        f'<div class="tweet-card">'
+                        f'<span class="tweet-idx">Tweet #{idx}</span>'
+                        f'<br><br>{tw}</div>',
+                        unsafe_allow_html=True)
             with c2:
                 st.markdown(
                     f'<h3 style="margin:0 0 10px;color:#ff4d8d;display:flex;'

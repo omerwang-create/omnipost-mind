@@ -69,10 +69,34 @@ def is_meta_refusal(raw):
         raw, re.I))
 
 
+# API 内部调试/元对话话术，拆分前剔除（仅确切的拒绝话术，避免误伤真实文案）
+_SYS_LOG_RE = re.compile(
+    r"same\s+(?:omni|article)|cognition\s+runway|status\s+i['’]?m\s+holding|"
+    r"not\s+re-run|not\s+reproduc|rather\s+skip|pick\s+before|"
+    r"hold[^.]{0,40}\bdrop\b", re.I)
+
+
+def _clean_tweets(items):
+    out = []
+    for it in items:
+        it = (it or "").strip()
+        if not it:
+            continue
+        if _SYS_LOG_RE.search(it):
+            continue
+        out.append(it)
+    return out
+
+
 def split_tweets(text, tweets=None):
-    """返回逐条推文列表。优先用已有数组；否则按 n/N 标记或换行切分。"""
+    """返回逐条推文列表，一推一条。
+
+    优先级：调用方传入的数组 → n/N 标记 → 编号/双换行强拆 → 单段兜底。
+    任一步骤都会先剔除 API 内部调试话术段。
+    """
     if tweets and len(tweets) > 1:
-        return [t for t in tweets if t.strip()]
+        return _clean_tweets(tweets)
+    # n/N 标记（1/6、2/6…）
     markers = list(re.finditer(r"\b\d{1,2}\s*/\s*\d{1,2}\b", text))
     if len(markers) >= 2:
         out = []
@@ -83,10 +107,13 @@ def split_tweets(text, tweets=None):
             seg = re.sub(r"^[.、:：\-—\s]+", "", seg)
             if seg:
                 out.append(seg)
-        if out:
-            return out
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
-    return lines or [text.strip()]
+        return _clean_tweets(out)
+    # 空行 / 编号强拆，过滤空段
+    parts = [p.strip() for p in re.split(r"\n\s*\n|\d+\s*[.)]|^\d+\s*$", text, flags=re.M)
+              if p.strip()]
+    if len(parts) > 1:
+        return _clean_tweets(parts)
+    return _clean_tweets([text.strip()])
 
 
 _NODE_RE = re.compile(
