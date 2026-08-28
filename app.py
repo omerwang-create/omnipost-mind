@@ -2,6 +2,11 @@ import time, re, os, json, threading
 import streamlit as st
 import minds, lang, brand, content
 
+
+class _StopRender(Exception):
+    """生成阶段发现无可渲染内容（额度拒绝等），中止本次渲染而不崩溃。"""
+
+
 st.set_page_config(page_title="OmniPost Mind", page_icon="🧠", layout="wide")
 
 # ---------- 设计系统：内容变形工坊（浅色主题 · 柔和灰白底 + 层次卡片流） ----------
@@ -566,8 +571,11 @@ if generate:
         try:
             with st.spinner(lang.t("generating")):
                 raw = reply(alias, prompt)
-            # 若 AI 返回的是「拒绝/元对话」，递增当前工作区 epoch 换全新会话重试
+            # 若 AI 返回的是「拒绝/元对话」：额度问题直接提示用户，其他拒绝换全新会话重试一次
             if content.is_meta_refusal(raw):
+                if content.is_credit_refusal(raw):
+                    st.error(lang.t("credit_refusal"))
+                    raise _StopRender()
                 ws = st.session_state.workspaces[st.session_state.current_ws]
                 ws["epoch"] = ws.get("epoch", 0) + 1
                 _save_workspaces()  # 落盘新的 epoch，记忆干净且持久
@@ -575,6 +583,10 @@ if generate:
                                           st.session_state["mind"]["mindId"])
                 with st.spinner(lang.t("generating")):
                     raw = reply(active_alias(), prompt)
+                if content.is_meta_refusal(raw):
+                    st.error(lang.t("credit_refusal") if content.is_credit_refusal(raw)
+                             else lang.t("timeout"))
+                    raise _StopRender()
             # 调试：终端打印 Minds API 原始返回
             print("=" * 60)
             print("[DEBUG] Minds API 原始返回 response_text:")
@@ -677,6 +689,8 @@ if generate:
             st.success(lang.t("exported", path=path))
         except TimeoutError:
             st.error(lang.t("timeout"))
+        except _StopRender:
+            pass  # 额度拒绝等已在 st.error 提示，不再渲染
 
 # ============ 主界面底部：当前工作区历史 ============
 st.markdown("---")

@@ -61,11 +61,23 @@ def is_meta_refusal(raw):
         return False
     if re.search(r"【|\[hook|\[scene|\[voiceover|\b\d{1,2}\s*/\s*\d{1,2}\b", raw, re.I):
         return False
-    # 拒绝话术特征
+    # 拒绝话术特征（含中文：拉闸/跑不动/补量/加量等额度相关拒绝）
     return bool(re.search(
         r"same\s+(?:omni|article|situation)|re-running|not\s+re-run|"
         r"not\s+reproduc|cognition\s+runway|waiting\s+for|rather\s+skip|"
-        r"pick\s+before|i['’]?m\s+not\s+(?:re-?)?(?:running|producing)",
+        r"pick\s+before|i['’]?m\s+not\s+(?:re-?)?(?:running|producing)|"
+        r"拉闸|跑不动|补量|加量|额度|runway\b.*\b(critical|负|CRITICAL)|"
+        r"(?:credit|credits|cognition)\s*(?:用完|不足|耗尽|is\s+out)",
+        raw, re.I))
+
+
+def is_credit_refusal(raw):
+    """是否额度耗尽的拒绝（充值/加量相关）。这类拒绝重试无意义，应提示用户。"""
+    if not raw:
+        return False
+    return bool(re.search(
+        r"补量|加量|充值|top\s*up|\$\s?\d+|credits?|runway|额度|拉闸|跑不动|"
+        r"credit\s*(?:is\s+)?(?:out|low|empty|用完|不足|耗尽)",
         raw, re.I))
 
 
