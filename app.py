@@ -235,6 +235,11 @@ st.markdown("""
 def get_mind_guard():
     try:
         ms = minds.list_minds()
+        # 优先选 mastermind（通用智力型，能遵守转换提示词）；
+        # 预设人格 Mind（如 gtm/marketing 搭档）有强开场白会污染输出
+        for m in ms:
+            if "mastermind" in (m.get("name") or "").lower():
+                return m
         return ms[0] if ms else None
     except Exception:
         return None
@@ -267,16 +272,15 @@ def icon(name, color=None, size=None):
 
 
 def reply(alias, text, timeout=360):
-    h = minds.get_history(alias, 20)
-    ref = next((r["id"] for r in h if r["senderType"] == 0), None)
-    # 跳过热身问候的回复（id 相同），它代表"会话已就绪"，不是生成结果
-    warm = _WARM_REPLY.get(alias)
-    minds.send_message(alias, text)
+    # 以本消息的 messageId 为基准：只认它之后出现的新 Mind 回复，
+    # 彻底规避预热回复 / 旧回复被误当成生成结果（历史按最新在前排序）
+    sent = minds.send_message(alias, text)
+    sent_id = sent.get("messageId")
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             for row in minds.get_history(alias, 20):
-                if row["senderType"] == 0 and row["id"] != ref and row["id"] != warm:
+                if row["senderType"] == 0 and row["id"] != sent_id:
                     return content.strip_html(row["messageText"])
         except Exception:
             # 单次轮询失败（SSL/网络抖动）静默跳过，不中断等待
@@ -306,8 +310,9 @@ def ensure_active_conversation():
 # ============ 冷启动预热 ============
 # 新会话首次回复需 180-300s（cognition 冷启动）。预热 = 启动/切换工作区时
 # 后台建会话并抛一句问候，让它先把首响烧掉；真正点击生成时基本秒回。
+# 注意：预热只发消息、不等待回复。生成由 reply() 以本消息 messageId 为基准，
+# 天然跳过预热回复，无需记录。
 _WARMED = set()
-_WARM_REPLY = {}  # alias -> 热身问候的 Mind 回复 id，生成轮询时跳过它
 _WARM_MSG = {
     "zh": "你好，OmniPost 会话已就绪。",
     "en": "Hello, OmniPost session is ready.",
@@ -321,17 +326,6 @@ def warm_conversation(alias, mind_id):
     try:
         minds.ensure_conversation(alias, mind_id)
         minds.send_message(alias, _WARM_MSG[lang.LANG])
-        # 等热身问候的回复落库，记录其 id；这条首响就是烧掉的冷启动
-        deadline = time.time() + 360
-        while time.time() < deadline:
-            try:
-                for row in minds.get_history(alias, 20):
-                    if row["senderType"] == 0 and row["id"] not in _WARM_REPLY.values():
-                        _WARM_REPLY[alias] = row["id"]
-                        return
-            except Exception:
-                pass
-            time.sleep(2)
     except Exception:
         _WARMED.discard(alias)  # 失败则下次再试
 
@@ -571,11 +565,12 @@ if generate:
         try:
             with st.spinner(lang.t("generating")):
                 raw = reply(alias, prompt)
-            # 若 AI 返回的是「拒绝/元对话」：额度问题直接提示用户，其他拒绝换全新会话重试一次
+            # 额度拒绝话术（含充值推销）独立检测，不依赖元话术模式——优先拦截
+            if content.is_credit_refusal(raw):
+                st.error(lang.t("credit_refusal"))
+                raise _StopRender()
+            # 其他「拒绝/元对话」：换全新会话重试一次
             if content.is_meta_refusal(raw):
-                if content.is_credit_refusal(raw):
-                    st.error(lang.t("credit_refusal"))
-                    raise _StopRender()
                 ws = st.session_state.workspaces[st.session_state.current_ws]
                 ws["epoch"] = ws.get("epoch", 0) + 1
                 _save_workspaces()  # 落盘新的 epoch，记忆干净且持久
@@ -583,9 +578,9 @@ if generate:
                                           st.session_state["mind"]["mindId"])
                 with st.spinner(lang.t("generating")):
                     raw = reply(active_alias(), prompt)
-                if content.is_meta_refusal(raw):
-                    st.error(lang.t("credit_refusal") if content.is_credit_refusal(raw)
-                             else lang.t("timeout"))
+                if content.is_meta_refusal(raw) or content.is_credit_refusal(raw):
+                    st.error(lang.t("credit_refusal")
+                             if content.is_credit_refusal(raw) else lang.t("timeout"))
                     raise _StopRender()
             # 调试：终端打印 Minds API 原始返回
             print("=" * 60)
