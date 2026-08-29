@@ -72,13 +72,22 @@ def is_meta_refusal(raw):
 
 
 def is_credit_refusal(raw):
-    """是否额度耗尽的拒绝（充值/加量相关）。这类拒绝重试无意义，应提示用户。"""
+    """是否额度耗尽的拒绝（充值/加量相关）。这类拒绝重试无意义，应提示用户。
+
+    必须同时命中「拒绝干活」+「充值/额度」两类语义，避免真实文案里提到
+    价格/credits 被误拦。
+    """
     if not raw:
         return False
-    return bool(re.search(
-        r"补量|加量|充值|top\s*up|\$\s?\d+|credits?|runway|额度|拉闸|跑不动|"
-        r"credit\s*(?:is\s+)?(?:out|low|empty|用完|不足|耗尽)",
-        raw, re.I))
+    refusal = re.search(
+        r"接不了|没法(?:继续|再|干)|无法|不能|干不了|跑不动|拉闸|见底|"
+        r"没电|没油|不做|不再|暂不|拒绝|拒绝执行|"
+        r"can['’]?t|can\s*not|cannot|won['’]?t|unable|refus|declin|"
+        r"out\s*of\s*credit|charged\s*out", raw, re.I)
+    money = re.search(
+        r"补量|加量|充值|top\s*-?\s*up|\$\s?\d+|credits?|额度|燃料|燃油|"
+        r"runway|档位|算力", raw, re.I)
+    return bool(refusal and money)
 
 
 # API 内部调试/元对话话术，拆分前剔除（仅确切的拒绝话术，避免误伤真实文案）
