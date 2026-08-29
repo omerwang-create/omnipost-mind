@@ -79,6 +79,8 @@ streamlit run app.py
 Open **http://localhost:8501**, pick a workspace + persona, paste any text, hit **Generate** — you'll see the virality score, Twitter thread, TikTok script, and export buttons within one prompt. That's the whole Cognition-memory flow, live.
 
 > Demo tip: the first generation on a fresh workspace can take a minute or two (Minds cognition cold start) — subsequent ones are fast.
+>
+> ⚠️ **Before the demo, make sure the Minds account has cognition credits.** Minds runs on a credit model — an account with a negative/zero balance refuses to generate (the Mind replies with a top-up notice). If that happens, OmniPost Mind shows a clear "credits exhausted" message instead of garbled output, but to actually see generations you should top up first at [build.hellominds.ai](https://build.hellominds.ai).
 
 ---
 
@@ -161,6 +163,7 @@ Open **http://localhost:8501** in your browser.
 
 - **Cold start:** a brand-new workspace's first generation can take up to a few minutes while Minds cognition initializes. Subsequent generations are fast.
 - **Workspace history** persists to `workspaces.json` in the project root, so it survives page refreshes.
+- **Credits required:** Minds is a credit-based platform. An account with an exhausted/negative cognition balance will refuse to generate (the Mind replies with a top-up notice). Top up at [build.hellominds.ai](https://build.hellominds.ai) before judging; the app detects this case and shows a clear message — it never renders billing chatter as output.
 
 ---
 
